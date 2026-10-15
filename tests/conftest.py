@@ -12,7 +12,17 @@ def tiny_model():
         "movies": {
             "1": movie("Toy Story", 1995, ["Animation", "Comedy"], 200),
             "2": movie("Toy Story 2", 1999, ["Animation", "Comedy"], 150),
-            "3": movie("Alien", 1979, ["Horror", "Sci-Fi"], 120),
+            "3": {
+                **movie("Alien", 1979, ["Horror", "Sci-Fi"], 120),
+                "avg": 4.1,
+                "poster": "/alien.jpg",
+                "backdrop": "/alien-wide.jpg",
+                "overview": "A crew meets a creature.",
+                "tagline": "In space no one can hear you scream.",
+                "runtime": 117,
+                "director": "Ridley Scott",
+                "cast": ["Sigourney Weaver", "Tom Skerritt"],
+            },
             "4": movie("Aliens", 1986, ["Horror", "Sci-Fi"], 100),
             "5": movie("Heat", 1995, ["Crime"], 80),
             "6": movie("Mr. (Unknown) Story*", None, [], 1),

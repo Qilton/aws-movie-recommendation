@@ -56,7 +56,9 @@ def test_limit_out_of_range_is_rejected(client):
 def test_similar(client):
     response = client.get("/api/movies/3/similar")
     assert response.status_code == 200
-    assert response.json()[0] == {"id": 4, "title": "Aliens", "year": 1986, "genres": ["Horror", "Sci-Fi"], "score": 0.8}
+    assert response.json()[0] == {
+        "id": 4, "title": "Aliens", "year": 1986, "genres": ["Horror", "Sci-Fi"], "poster": None, "score": 0.8,
+    }
 
 
 def test_similar_unknown_movie_is_404(client):
@@ -68,7 +70,8 @@ def test_rate_then_list_ratings(client):
     assert response.status_code == 200
     assert response.json() == {"movieId": 3, "rating": 4.5}
     listed = client.get("/api/users/alice/ratings").json()
-    assert listed == [{"id": 3, "title": "Alien", "year": 1979, "genres": ["Horror", "Sci-Fi"], "rating": 4.5}]
+    assert [(m["id"], m["title"], m["rating"]) for m in listed] == [(3, "Alien", 4.5)]
+    assert listed[0]["poster"] == "https://image.tmdb.org/t/p/w342/alien.jpg"
 
 
 def test_rating_unknown_movie_is_404_and_not_stored(client, store):
@@ -103,12 +106,16 @@ class DownStore:
     def put_rating(self, user_id, movie_id, rating):
         raise StoreUnavailable("ratings store unavailable: connection refused")
 
+    def delete_rating(self, user_id, movie_id):
+        raise StoreUnavailable("ratings store unavailable: connection refused")
+
 
 def test_store_down_returns_503_with_message(tiny_model):
     client = TestClient(create_app(Recommender(tiny_model), DownStore()))
     for response in (
         client.get("/api/users/alice/recommendations"),
         client.put("/api/users/alice/ratings/3", json={"rating": 5}),
+        client.delete("/api/users/alice/ratings/3"),
     ):
         assert response.status_code == 503
         assert "ratings store unavailable" in response.json()["detail"]
@@ -143,3 +150,36 @@ def test_lambda_handler_serves_api_gateway_event(tiny_model, store):
     response = handler(event, None)
     assert response["statusCode"] == 200
     assert [m["id"] for m in json.loads(response["body"])] == [5]
+
+
+def test_movie_details(client):
+    response = client.get("/api/movies/3")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["title"] == "Alien" and body["director"] == "Ridley Scott"
+    assert body["poster"].endswith("/w342/alien.jpg") and body["backdrop"].endswith("/w1280/alien-wide.jpg")
+
+
+def test_movie_details_unknown_is_404(client):
+    assert client.get("/api/movies/999").status_code == 404
+
+
+def test_search_route_still_wins_over_details_route(client):
+    assert client.get("/api/movies/search", params={"q": "heat"}).json()[0]["id"] == 5
+
+
+def test_delete_rating(client, store):
+    client.put("/api/users/alice/ratings/3", json={"rating": 5})
+    response = client.delete("/api/users/alice/ratings/3")
+    assert response.status_code == 204
+    assert store.get_ratings("alice") == {}
+
+
+def test_delete_rating_that_does_not_exist_is_204(client):
+    assert client.delete("/api/users/alice/ratings/3").status_code == 204
+
+
+def test_uuid_user_ids_are_accepted(client):
+    user = "3f2b8c1e-9a4d-4e6b-8f0a-1c2d3e4f5a6b"
+    assert client.put(f"/api/users/{user}/ratings/3", json={"rating": 5}).status_code == 200
+    assert client.get(f"/api/users/{user}/recommendations").json()[0]["id"] == 4

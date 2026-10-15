@@ -60,6 +60,12 @@ class RatingsStore:
         except (BotoCoreError, ClientError) as error:
             _unavailable(error)
 
+    def delete_rating(self, user_id, movie_id):
+        try:
+            self._table.delete_item(Key={"userId": user_id, "movieId": movie_id})
+        except (BotoCoreError, ClientError) as error:
+            _unavailable(error)
+
     def get_ratings(self, user_id):
         ratings = {}
         kwargs = {"KeyConditionExpression": Key("userId").eq(user_id)}

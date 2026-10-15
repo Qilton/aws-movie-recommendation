@@ -52,3 +52,17 @@ def test_unreachable_endpoint_raises_store_unavailable(monkeypatch):
         store.get_ratings("alice")
     with pytest.raises(StoreUnavailable):
         store.put_rating("alice", 1, 5.0)
+    with pytest.raises(StoreUnavailable):
+        store.delete_rating("alice", 1)
+
+
+def test_delete_rating_removes_only_that_movie(store):
+    store.put_rating("alice", 1, 5.0)
+    store.put_rating("alice", 2, 4.0)
+    store.delete_rating("alice", 1)
+    assert store.get_ratings("alice") == {2: 4.0}
+
+
+def test_delete_missing_rating_is_a_no_op(store):
+    store.delete_rating("alice", 1)
+    assert store.get_ratings("alice") == {}

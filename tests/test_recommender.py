@@ -7,7 +7,10 @@ def titles(movies):
 
 def test_movie_returns_metadata_with_id(tiny_model):
     rec = Recommender(tiny_model)
-    assert rec.movie(3) == {"id": 3, "title": "Alien", "year": 1979, "genres": ["Horror", "Sci-Fi"]}
+    assert rec.movie(3) == {
+        "id": 3, "title": "Alien", "year": 1979, "genres": ["Horror", "Sci-Fi"],
+        "poster": "https://image.tmdb.org/t/p/w342/alien.jpg",
+    }
     assert rec.movie(999) is None
 
 
@@ -81,3 +84,28 @@ def test_no_ratings_returns_popular(tiny_model):
 def test_ratings_for_unknown_movies_are_ignored(tiny_model):
     recs = Recommender(tiny_model).recommend({999: 5.0})
     assert [m["id"] for m in recs][:1] == [5]
+
+
+def test_movie_without_tmdb_poster_has_null_poster(tiny_model):
+    assert Recommender(tiny_model).movie(4)["poster"] is None
+
+
+def test_details_include_tmdb_fields_and_image_urls(tiny_model):
+    details = Recommender(tiny_model).details(3)
+    assert details["backdrop"] == "https://image.tmdb.org/t/p/w1280/alien-wide.jpg"
+    assert details["director"] == "Ridley Scott"
+    assert details["cast"] == ["Sigourney Weaver", "Tom Skerritt"]
+    assert details["runtime"] == 117 and details["avg"] == 4.1 and details["count"] == 120
+    assert details["tagline"] == "In space no one can hear you scream."
+
+
+def test_details_without_tmdb_data_are_null(tiny_model):
+    details = Recommender(tiny_model).details(4)
+    assert details["title"] == "Aliens"
+    for key in ("poster", "backdrop", "overview", "tagline", "runtime", "director", "avg"):
+        assert details[key] is None, key
+    assert details["cast"] == []
+
+
+def test_details_of_unknown_movie_is_none(tiny_model):
+    assert Recommender(tiny_model).details(999) is None

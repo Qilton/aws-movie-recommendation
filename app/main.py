@@ -1,7 +1,7 @@
 """HTTP API. `create_app` receives its dependencies, so tests can pass fakes;
 app/server.py wires up the real ones from environment variables."""
 
-from fastapi import FastAPI, HTTPException, Path, Query, Request
+from fastapi import FastAPI, HTTPException, Path, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -19,7 +19,7 @@ class RatingIn(BaseModel):
 
 def create_app(recommender, store, frontend_dir=None):
     app = FastAPI(title="Movie Recommender")
-    app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "PUT"], allow_headers=["*"])
+    app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "PUT", "DELETE"], allow_headers=["*"])
 
     @app.exception_handler(StoreUnavailable)
     async def store_unavailable(request: Request, exc: StoreUnavailable):
@@ -39,6 +39,11 @@ def create_app(recommender, store, frontend_dir=None):
     def popular(limit: int = Limit):
         return recommender.popular(limit)
 
+    @app.get("/api/movies/{movie_id}")
+    def details(movie_id: int):
+        require_movie(movie_id)
+        return recommender.details(movie_id)
+
     @app.get("/api/movies/{movie_id}/similar")
     def similar(movie_id: int, limit: int = Query(10, ge=1, le=30)):
         require_movie(movie_id)
@@ -55,6 +60,11 @@ def create_app(recommender, store, frontend_dir=None):
         require_movie(movie_id)
         store.put_rating(user_id, movie_id, body.rating)
         return {"movieId": movie_id, "rating": body.rating}
+
+    @app.delete("/api/users/{user_id}/ratings/{movie_id}", status_code=204)
+    def unrate(movie_id: int, user_id: str = UserId):
+        store.delete_rating(user_id, movie_id)
+        return Response(status_code=204)
 
     @app.get("/api/users/{user_id}/recommendations")
     def recommendations(user_id: str = UserId, limit: int = Limit):

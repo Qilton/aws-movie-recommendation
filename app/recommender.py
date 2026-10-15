@@ -3,6 +3,12 @@
 from collections import defaultdict
 
 NEUTRAL_RATING = 3.0  # ratings above this pull neighbours up, below push them down
+POSTER_URL = "https://image.tmdb.org/t/p/w342"
+BACKDROP_URL = "https://image.tmdb.org/t/p/w1280"
+
+
+def _image(base, path):
+    return base + path if path else None
 
 
 class Recommender:
@@ -15,7 +21,31 @@ class Recommender:
         m = self._movies.get(movie_id)
         if m is None:
             return None
-        return {"id": movie_id, "title": m["title"], "year": m["year"], "genres": m["genres"]}
+        return {
+            "id": movie_id,
+            "title": m["title"],
+            "year": m["year"],
+            "genres": m["genres"],
+            "poster": _image(POSTER_URL, m.get("poster")),
+        }
+
+    def details(self, movie_id):
+        """Everything the movie page shows. TMDB fields are null when unknown."""
+        summary = self.movie(movie_id)
+        if summary is None:
+            return None
+        m = self._movies[movie_id]
+        return {
+            **summary,
+            "backdrop": _image(BACKDROP_URL, m.get("backdrop")),
+            "overview": m.get("overview"),
+            "tagline": m.get("tagline"),
+            "runtime": m.get("runtime"),
+            "director": m.get("director"),
+            "cast": m.get("cast") or [],
+            "avg": m.get("avg"),
+            "count": m.get("count", 0),
+        }
 
     def search(self, query, limit=20):
         query = query.strip().lower()
