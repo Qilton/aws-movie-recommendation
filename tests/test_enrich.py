@@ -145,3 +145,17 @@ def test_load_key_prefers_environment_then_env_file(tmp_path, monkeypatch):
     assert load_key(env_file) == "from-env"
     monkeypatch.delenv("TMDB_API_KEY")
     assert load_key(tmp_path / "missing.env") is None
+
+
+def test_rejected_key_stops_with_a_clear_message():
+    with pytest.raises(SystemExit, match="TMDB rejected the key"):
+        make_fetch("wrong", opener=FakeOpener(http_error(401)))(862)
+
+
+def test_check_key_makes_a_single_request_before_the_run():
+    from enrich import check_key
+
+    opener = FakeOpener(http_error(401))
+    with pytest.raises(SystemExit):
+        check_key(make_fetch("wrong", opener=opener))
+    assert len(opener.requests) == 1

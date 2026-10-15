@@ -138,6 +138,11 @@ def enrich(links, out_path, fetch, workers=8):
     return stats
 
 
+def check_key(fetch):
+    """One request up front, so a wrong key fails fast instead of 9,700 times."""
+    fetch(862)  # Toy Story
+
+
 def read_links(path=LINKS):
     with open(path, newline="") as f:
         return [
@@ -154,7 +159,9 @@ def main():
         raise SystemExit(f"{LINKS} not found. Run `python train.py` once first to download MovieLens.")
     links = read_links()
     print(f"Fetching TMDB details for {len(links)} movies (already done ones are skipped) ...")
-    stats = enrich(links, OUTPUT, make_fetch(key))
+    fetch = make_fetch(key)
+    check_key(fetch)
+    stats = enrich(links, OUTPUT, fetch)
     print(f"Done: {stats}. Now rebuild the model: python train.py")
     if stats["failed"]:
         print("Some movies failed; rerun `python enrich.py` to retry just those.")
