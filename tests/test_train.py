@@ -103,3 +103,30 @@ def test_stores_rating_count_per_movie(frames):
     model = build_model(*frames)
     assert model["movies"]["1"]["count"] == 12
     assert model["movies"]["6"]["count"] == 2
+
+
+def test_stores_average_rating_rounded(frames):
+    model = build_model(*frames)
+    assert model["movies"]["5"]["avg"] == 4.5
+    assert model["movies"]["1"]["avg"] == 3.0
+
+
+def test_merges_tmdb_details_when_given(frames):
+    details = {
+        1: {"movieId": 1, "poster": "/toy.jpg", "backdrop": "/toy-wide.jpg", "overview": "Toys.",
+            "tagline": None, "runtime": 81, "director": "John Lasseter", "cast": ["Tom Hanks"]},
+    }
+    model = build_model(*frames, details=details)
+    toy = model["movies"]["1"]
+    assert toy["poster"] == "/toy.jpg" and toy["runtime"] == 81 and toy["cast"] == ["Tom Hanks"]
+    assert "movieId" not in toy
+    assert "poster" not in model["movies"]["2"]
+
+
+def test_load_details_reads_jsonl(tmp_path):
+    from train import load_details
+
+    path = tmp_path / "tmdb.jsonl"
+    path.write_text('{"movieId": 1, "poster": "/a.jpg"}\n{"movieId": 2, "poster": null}\n')
+    assert load_details(path) == {1: {"movieId": 1, "poster": "/a.jpg"}, 2: {"movieId": 2, "poster": None}}
+    assert load_details(tmp_path / "missing.jsonl") == {}

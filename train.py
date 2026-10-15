@@ -28,6 +28,7 @@ from sklearn.preprocessing import normalize
 DATASET_URL = "https://files.grouplens.org/datasets/movielens/ml-latest-small.zip"
 DATA_DIR = Path("data")
 DEFAULT_OUTPUT = Path("model/model.json.gz")
+TMDB_DETAILS = DATA_DIR / "tmdb.jsonl"  # optional, written by enrich.py
 
 MIN_RATINGS = 10  # movies need this many ratings to take part in collaborative filtering
 CHUNK = 1000  # rows of the similarity matrix computed at once (keeps memory low)
@@ -119,7 +120,8 @@ def popular_movies(movies, ratings, n_popular, min_ratings):
     return [int(i) for i in weighted.sort_values(ascending=False).index[:n_popular]]
 
 
-def build_model(movies, ratings, tags, k=30, n_popular=50, min_ratings=MIN_RATINGS):
+def build_model(movies, ratings, tags, k=30, n_popular=50, min_ratings=MIN_RATINGS, details=None):
+    """details: optional {movieId: TMDB record} from enrich.py, merged into each movie."""
     movies = movies.reset_index(drop=True)
     ids = movies["movieId"].astype(int).tolist()
 
@@ -128,6 +130,8 @@ def build_model(movies, ratings, tags, k=30, n_popular=50, min_ratings=MIN_RATIN
     neighbours = top_neighbours(content, collab, k)
 
     counts = ratings["movieId"].value_counts()
+    averages = ratings.groupby("movieId")["rating"].mean()
+    details = details or {}
     model_movies = {}
     for movie_id, raw_title, genres in zip(ids, movies["title"], movies["genres"]):
         title, year = parse_title(raw_title)
@@ -136,7 +140,11 @@ def build_model(movies, ratings, tags, k=30, n_popular=50, min_ratings=MIN_RATIN
             "year": year,
             "genres": parse_genres(genres),
             "count": int(counts.get(movie_id, 0)),
+            "avg": round(float(averages[movie_id]), 1) if movie_id in averages.index else None,
         }
+        extra = details.get(movie_id)
+        if extra:
+            model_movies[str(movie_id)].update({k: v for k, v in extra.items() if k != "movieId"})
 
     return {
         "movies": model_movies,
@@ -146,6 +154,15 @@ def build_model(movies, ratings, tags, k=30, n_popular=50, min_ratings=MIN_RATIN
         },
         "popular": popular_movies(movies, ratings, n_popular, min_ratings),
     }
+
+
+def load_details(path=TMDB_DETAILS):
+    """Reads data/tmdb.jsonl written by enrich.py; {} if it hasn't been run."""
+    path = Path(path)
+    if not path.exists():
+        return {}
+    records = (json.loads(line) for line in path.read_text().splitlines() if line.strip())
+    return {r["movieId"]: r for r in records}
 
 
 def save_model(model, path):
@@ -181,7 +198,9 @@ def main():
 
     movies, ratings, tags = load_dataset()
     print(f"Building model from {len(movies)} movies and {len(ratings)} ratings ...")
-    model = build_model(movies, ratings, tags)
+    details = load_details()
+    print(f"TMDB details: {len(details)} movies" if details else "TMDB details: none (run enrich.py for posters)")
+    model = build_model(movies, ratings, tags, details=details)
     save_model(model, args.output)
     size_kb = args.output.stat().st_size / 1024
     print(f"Wrote {args.output} ({size_kb:.0f} KB)")
