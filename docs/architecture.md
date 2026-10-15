@@ -11,7 +11,10 @@ flowchart LR
         model[S3 model bucket<br/>model.json.gz]
         logs[CloudWatch Logs]
     end
+    tmdb[(TMDB API)] -- enrich.py, offline --> train
     train[train.py<br/>run offline] -- upload --> model
+    tmdbimg[TMDB image CDN]
+    user -- poster & backdrop images --> tmdbimg
     user -- loads page --> site
     user -- fetch /api/... --> api --> fn
     fn -- read/write ratings --> db
@@ -42,6 +45,16 @@ The same code runs in both places; only environment variables change.
 | API | `uvicorn app.server:app` | Lambda `app.server.handler` behind API Gateway |
 | Ratings | DynamoDB Local (official Amazon Docker image) | DynamoDB |
 | Model | `model/model.json.gz` on disk (`MODEL_PATH`) | S3 (`MODEL_S3_BUCKET`), cached in `/tmp` |
+
+## Movie details and images
+
+`enrich.py` runs once on the developer's machine. It looks up each MovieLens movie on TMDB (MovieLens ships the TMDB id in `links.csv`), keeps only what the site shows (poster and backdrop paths, overview, tagline, runtime, director, top-5 cast) and `train.py` folds that into the model file. The browser then loads images straight from TMDB's image CDN.
+
+Keeping this offline means the TMDB key never leaves the developer's machine, the Lambda makes no third-party calls (fast, nothing to rate-limit) and there is still nothing to change in the AWS setup.
+
+## Users
+
+There are no accounts. The website generates a random id on first visit, keeps it in `localStorage`, and uses it as the DynamoDB partition key for that visitor's ratings. "Start over" on the ratings page just generates a new id.
 
 ## How the recommendations work
 
