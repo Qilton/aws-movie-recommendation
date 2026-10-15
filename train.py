@@ -127,10 +127,16 @@ def build_model(movies, ratings, tags, k=30, n_popular=50, min_ratings=MIN_RATIN
     collab = collaborative_matrix(movies, ratings, min_ratings)
     neighbours = top_neighbours(content, collab, k)
 
+    counts = ratings["movieId"].value_counts()
     model_movies = {}
     for movie_id, raw_title, genres in zip(ids, movies["title"], movies["genres"]):
         title, year = parse_title(raw_title)
-        model_movies[str(movie_id)] = {"title": title, "year": year, "genres": parse_genres(genres)}
+        model_movies[str(movie_id)] = {
+            "title": title,
+            "year": year,
+            "genres": parse_genres(genres),
+            "count": int(counts.get(movie_id, 0)),
+        }
 
     return {
         "movies": model_movies,

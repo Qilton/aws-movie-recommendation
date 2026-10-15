@@ -40,12 +40,11 @@ def frames():
 
 def test_parses_title_year_and_genres(frames):
     model = build_model(*frames)
-    assert model["movies"]["1"] == {
-        "title": "Toy Story",
-        "year": 1995,
-        "genres": ["Animation", "Comedy"],
-    }
-    assert model["movies"]["6"] == {"title": "Untitled", "year": None, "genres": []}
+    assert model["movies"]["1"]["title"] == "Toy Story"
+    assert model["movies"]["1"]["year"] == 1995
+    assert model["movies"]["1"]["genres"] == ["Animation", "Comedy"]
+    assert model["movies"]["6"]["year"] is None
+    assert model["movies"]["6"]["genres"] == []
 
 
 def test_neighbours_exclude_self_and_respect_k(frames):
@@ -98,3 +97,9 @@ def test_shared_audience_beats_obscure_content_twin(frames):
     )
     scores = dict(build_model(movies, ratings, tags)["neighbours"]["1"])
     assert scores[2] > scores[7]
+
+
+def test_stores_rating_count_per_movie(frames):
+    model = build_model(*frames)
+    assert model["movies"]["1"]["count"] == 12
+    assert model["movies"]["6"]["count"] == 2
