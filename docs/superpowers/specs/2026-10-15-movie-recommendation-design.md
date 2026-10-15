@@ -61,8 +61,9 @@ reads the model from a local file, and talks to **DynamoDB Local**
     cosine similarity.
   - **Collaborative:** item × user rating matrix (sparse, mean-centred per
     user), cosine similarity; only movies with ≥ 10 ratings participate.
-  - **Hybrid score** = `0.5 * content + 0.5 * collaborative` when both exist,
-    otherwise whichever exists.
+  - **Hybrid score** = `0.5 * content + 0.5 * collaborative`, with
+    collaborative = 0 when either movie has < 10 ratings (so well-known films
+    prefer neighbours sharing a real audience over obscure tag look-alikes).
 - Keeps only the **top 30 neighbours per movie** → small artifact.
 - Also stores movie metadata (id, title, year, genres) and a **popular list**
   (Bayesian-weighted average rating, top 50) for cold start.

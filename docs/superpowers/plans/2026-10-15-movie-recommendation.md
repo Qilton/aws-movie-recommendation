@@ -15,7 +15,7 @@
 - Runtime deps limited to `fastapi`, `mangum`, `boto3` (Lambda package must stay < 250 MB; no numpy/pandas at runtime).
 - Model artifact: `model/model.json.gz`, plain JSON (no pickle).
 - Top 30 neighbours per movie; popular list = top 50 by Bayesian-weighted average.
-- Hybrid score = `0.5 * content + 0.5 * collaborative` when both exist, otherwise whichever exists; collaborative only for movies with ≥ 10 ratings.
+- Hybrid score = `0.5 * content + 0.5 * collaborative`; collaborative = 0 unless both movies have ≥ 10 ratings.
 - Recommendation weight = `rating - 3.0`.
 - Ratings in [0.5, 5.0]; user ids match `^[A-Za-z0-9_-]{1,40}$`.
 - DynamoDB Local on host port 8001; uvicorn on 8000.
