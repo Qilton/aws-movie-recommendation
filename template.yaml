@@ -1,0 +1,88 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Movie recommendation system (S3 + Lambda + API Gateway + DynamoDB)
+
+Globals:
+  Function:
+    Runtime: python3.12
+    MemorySize: 512
+    Timeout: 15
+
+Resources:
+  # User ratings: one item per (userId, movieId). On-demand billing = free tier friendly.
+  RatingsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: userId, AttributeType: S }
+        - { AttributeName: movieId, AttributeType: N }
+      KeySchema:
+        - { AttributeName: userId, KeyType: HASH }
+        - { AttributeName: movieId, KeyType: RANGE }
+
+  # Private bucket holding the trained model (model.json.gz), read by the Lambda.
+  ModelBucket:
+    Type: AWS::S3::Bucket
+
+  # Public bucket serving the static website.
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      WebsiteConfiguration:
+        IndexDocument: index.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: false
+        RestrictPublicBuckets: false
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: s3:GetObject
+            Resource: !Sub "${FrontendBucket.Arn}/*"
+
+  # The FastAPI app, run by Mangum. API Gateway forwards every request to it.
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: build/lambda-src/  # staged by scripts/deploy.sh (app/ + requirements.txt only)
+      Handler: app.server.handler
+      Environment:
+        Variables:
+          RATINGS_TABLE: !Ref RatingsTable
+          MODEL_S3_BUCKET: !Ref ModelBucket
+          MODEL_S3_KEY: model.json.gz
+      Policies:  # least privilege: this table and this bucket only
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RatingsTable
+        - S3ReadPolicy:
+            BucketName: !Ref ModelBucket
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+
+Outputs:
+  ApiUrl:
+    Description: Base URL of the HTTP API
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}"
+  WebsiteUrl:
+    Description: The movie recommendation website
+    Value: !GetAtt FrontendBucket.WebsiteURL
+  ModelBucketName:
+    Value: !Ref ModelBucket
+  FrontendBucketName:
+    Value: !Ref FrontendBucket
