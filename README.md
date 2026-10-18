@@ -50,6 +50,8 @@ Covers TMDB fetching (with a fake HTTP layer: rate limits, retries, resume), the
 
 ## Deploy to AWS (optional)
 
+**Step-by-step guide, including the AWS console setup and how the pieces connect: [docs/deploy-aws.md](docs/deploy-aws.md).**
+
 Needs an AWS account, the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) (run `aws configure`) and the [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html).
 
 ```bash

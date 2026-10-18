@@ -12,7 +12,8 @@ cp -r app requirements.txt build/lambda-src/
 find build/lambda-src -name __pycache__ -prune -exec rm -rf {} +
 
 echo "== Building and deploying stack $STACK"
-sam build
+# The Lambda runs Python 3.12; without it locally, build inside SAM's Docker image instead.
+if command -v python3.12 >/dev/null; then sam build; else sam build --use-container; fi
 sam deploy --stack-name "$STACK" --resolve-s3 --capabilities CAPABILITY_IAM \
   --no-confirm-changeset --no-fail-on-empty-changeset
 
