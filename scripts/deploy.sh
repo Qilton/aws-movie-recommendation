@@ -27,7 +27,11 @@ aws s3 cp model/model.json.gz "s3://$(output ModelBucketName)/model.json.gz"
 
 echo "== Publishing website to S3"
 rm -rf build/site && cp -r frontend build/site
-echo "window.API_BASE = \"$API_URL\";" > build/site/config.js
+POOL_ID="$(output UserPoolId)"
+cat > build/site/config.js <<CONFIG
+window.API_BASE = "$API_URL";
+window.AUTH = { mode: "cognito", region: "${POOL_ID%%_*}", clientId: "$(output UserPoolClientId)" };
+CONFIG
 aws s3 sync build/site "s3://$(output FrontendBucketName)" --delete
 
 echo

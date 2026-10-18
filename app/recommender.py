@@ -65,10 +65,12 @@ class Recommender:
             for n, score in self._neighbours.get(movie_id, [])[:limit]
         ]
 
-    def recommend(self, ratings, limit=20):
+    def recommend(self, ratings, limit=20, exclude=()):
         """Score each neighbour of a rated movie by sum(weight * similarity),
-        where weight = rating - 3. Falls back to popular movies when the user
-        has no positive signal yet."""
+        where weight = rating - 3. Rated and `exclude`d movies are never
+        recommended. Falls back to popular movies when the user has no positive
+        signal yet."""
+        skip = set(ratings) | set(exclude)
         scores = defaultdict(float)
         contributions = defaultdict(dict)  # candidate -> {rated movie: contribution}
         for rated_id, rating in ratings.items():
@@ -77,10 +79,10 @@ class Recommender:
                 scores[n] += weight * similarity
                 contributions[n][rated_id] = weight * similarity
 
-        candidates = [i for i, s in scores.items() if s > 0 and i not in ratings]
+        candidates = [i for i, s in scores.items() if s > 0 and i not in skip]
         candidates.sort(key=lambda i: -scores[i])
         if not candidates:
-            return [{**m, "score": None, "because": None} for m in self.popular(limit, exclude=ratings)]
+            return [{**m, "score": None, "because": None} for m in self.popular(limit, exclude=skip)]
 
         results = []
         for i in candidates[:limit]:

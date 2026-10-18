@@ -109,3 +109,13 @@ def test_details_without_tmdb_data_are_null(tiny_model):
 
 def test_details_of_unknown_movie_is_none(tiny_model):
     assert Recommender(tiny_model).details(999) is None
+
+
+def test_recommend_also_excludes_given_movies(tiny_model):
+    rec = Recommender(tiny_model)
+    assert 4 not in [m["id"] for m in rec.recommend({3: 5.0}, exclude={4})]
+
+
+def test_popular_fallback_respects_exclude(tiny_model):
+    rec = Recommender(tiny_model)
+    assert [m["id"] for m in rec.recommend({}, limit=3, exclude={5, 1})] == [3, 2, 4]

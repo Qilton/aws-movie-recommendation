@@ -8,7 +8,8 @@ cd "$(dirname "$0")/.."
 docker compose up -d dynamodb
 
 export DYNAMODB_ENDPOINT=http://localhost:8001
-export RATINGS_TABLE=Ratings
+export LIBRARY_TABLE=Library
+export AUTH_MODE=local  # simple built-in accounts instead of Cognito
 # DynamoDB Local accepts any credentials; set dummies if none are configured.
 export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-local}"
 export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-local}"
