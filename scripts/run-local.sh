@@ -15,5 +15,5 @@ export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-local}"
 export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-local}"
 export AWS_REGION="${AWS_REGION:-us-east-1}"
 
-echo "Open http://localhost:8000"
+echo "Open http://localhost:8000 (accounts are local: any email works, nothing is sent)"
 exec uvicorn app.server:app --port 8000 "$@"

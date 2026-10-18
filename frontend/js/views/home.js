@@ -1,17 +1,31 @@
 import { api } from "../api.js";
-import { user } from "../user.js";
+import { auth } from "../auth.js";
+import { library } from "../library.js";
 import { el, errorBox, metaLine, row, skeletonRow } from "../ui.js";
 
 export async function renderHome(view) {
   view.replaceChildren(el("div", { class: "hero skeleton" }), skeletonRow("Top picks for you"), skeletonRow("Popular"));
 
   try {
-    const rated = new Set(user.ratings.keys());
-    const unrated = (list) => list.filter((m) => !rated.has(m.id));
-    const loved = user.loved().slice(0, 3);
+    if (!auth.signedIn) {
+      const popular = await api.popular(40);
+      const heroMovie = popular[0] ? await api.movie(popular[0].id) : null;
+      view.replaceChildren(
+        heroMovie ? hero(heroMovie, null) : "",
+        el("div", { class: "join" },
+          el("p", {}, "Make an account to keep a list of what you've watched and want to watch, and get picks made for your taste."),
+          el("div", { class: "join-actions" },
+            el("a", { class: "btn primary", href: "#/signup" }, "Create account"),
+            el("a", { class: "btn ghost", href: "#/signin" }, "Sign in"))),
+        row("Popular on Movie Picks", popular.slice(1))
+      );
+      return;
+    }
 
+    const listed = (list) => list.filter((m) => !library.get(m.id));
+    const loved = library.loved().slice(0, 3);
     const [picks, popular, ...similarLists] = await Promise.all([
-      api.recommendations(user.id, 30),
+      api.recommendations(30),
       api.popular(40),
       ...loved.map((m) => api.similar(m.id, 20)),
     ]);
@@ -19,17 +33,19 @@ export async function renderHome(view) {
     const top = picks[0] ?? popular[0];
     const heroMovie = top ? await api.movie(top.id) : null;
 
-    // Each movie appears in at most one row, so rows don't repeat each other.
-    const shown = new Set();
-    const fresh = (list) => unrated(list).filter((m) => !shown.has(m.id));
+    // Each suggested movie appears in at most one row, so rows don't repeat each other.
+    const shown = new Set(top ? [top.id] : []);
+    const fresh = (list) => listed(list).filter((m) => !shown.has(m.id));
     const rows = [];
-    const addRow = (title, list, options) => {
-      if (list.length < 4) return;
+    const addRow = (title, list, options, min = 4) => {
+      if (list.length < min) return;
       list.forEach((m) => shown.add(m.id));
       rows.push(row(title, list, options));
     };
-    if (personal) addRow("Top picks for you", picks.slice(0, 12), { caption: (m) => `Because you liked ${m.because}` });
+    addRow("Continue watching", library.withStatus("watching"), {}, 1);
+    if (personal) addRow("Top picks for you", fresh(picks).slice(0, 12), { caption: (m) => `Because you liked ${m.because}` });
     loved.forEach((m, i) => addRow(`Because you liked ${m.title}`, fresh(similarLists[i])));
+    addRow("On your watchlist", library.withStatus("plan_to_watch"), {}, 1);
     addRow("Popular on Movie Picks", fresh(popular));
     if (!personal) {
       rows.unshift(

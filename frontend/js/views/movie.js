@@ -1,6 +1,7 @@
 import { api } from "../api.js";
-import { rateMovie, removeRating } from "../actions.js";
-import { user } from "../user.js";
+import { rateMovie, removeFromList, removeRating, setStatus } from "../actions.js";
+import { auth } from "../auth.js";
+import { library, STATUSES } from "../library.js";
 import { el, errorBox, metaLine, poster, row, skeletonRow, stars } from "../ui.js";
 
 export async function renderMovie(view, id) {
@@ -16,25 +17,7 @@ export async function renderMovie(view, id) {
   }
   document.title = `${movie.title} · Movie Picks`;
 
-  const yourLabel = el("p", { class: "your-label" });
-  const remove = el("button", { type: "button", class: "btn ghost small" }, "Remove rating");
-  const starGroup = stars(user.ratingOf(movie.id), async (n) => {
-    const ok = await rateMovie(movie, n);
-    if (ok) refresh();
-    return ok;
-  }, { label: `Your rating for ${movie.title}`, large: true });
-  remove.addEventListener("click", async () => {
-    if (await removeRating(movie)) {
-      starGroup.setValue(0);
-      refresh();
-    }
-  });
-  const refresh = () => {
-    const r = user.ratingOf(movie.id);
-    yourLabel.textContent = r ? `You rated it ${r}/5` : "Seen it? Rate it to improve your picks.";
-    remove.hidden = !r;
-  };
-  refresh();
+  const panel = listPanel(movie);
 
   const facts = [
     movie.director && ["Directed by", movie.director],
@@ -63,10 +46,72 @@ export async function renderMovie(view, id) {
           movie.tagline && el("p", { class: "movie-tagline" }, movie.tagline),
           el("p", { class: "movie-overview" }, movie.overview || "No plot summary available for this movie yet."),
           facts.length && el("dl", { class: "facts" }, facts.map(([k, v]) => [el("dt", {}, k), el("dd", {}, v)])),
-          el("section", { class: "your-rating", "aria-label": "Your rating" }, el("h2", {}, "Your rating"), starGroup, yourLabel, remove)
+          panel
         )
       )
     ),
     similar.length ? row("More like this", similar) : ""
   );
+}
+
+// "Your list" box: status buttons, rating stars, remove. Signed out: a sign-in prompt.
+function listPanel(movie) {
+  const box = el("section", { class: "your-list", "aria-labelledby": "your-list-title" });
+  if (!auth.signedIn) {
+    box.append(
+      el("h2", { id: "your-list-title" }, "Your list"),
+      el("p", { class: "your-label" }, "Sign in to rate this movie and keep track of what you watch."),
+      el("a", { class: "btn primary small", href: `#/signin?next=${encodeURIComponent(`#/movie/${movie.id}`)}` }, "Sign in")
+    );
+    return box;
+  }
+
+  const statusButtons = STATUSES.map((s) =>
+    el("button", {
+      type: "button",
+      class: "seg",
+      onclick: async () => {
+        if (library.statusOf(movie.id) !== s.id && (await setStatus(movie, s.id))) refresh();
+      },
+    }, s.label)
+  );
+  const removeListed = el("button", {
+    type: "button",
+    class: "link-btn",
+    onclick: async () => {
+      if (await removeFromList(movie)) refresh();
+    },
+  }, "Remove from list");
+  const ratingLabel = el("p", { class: "your-label" });
+  const removeRated = el("button", {
+    type: "button",
+    class: "link-btn",
+    onclick: async () => {
+      if (await removeRating(movie)) refresh();
+    },
+  }, "Remove rating");
+  const starGroup = stars(library.ratingOf(movie.id), async (n) => {
+    const ok = await rateMovie(movie, n);
+    if (ok) refresh();
+    return ok;
+  }, { label: `Your rating for ${movie.title}`, large: true });
+
+  function refresh() {
+    const status = library.statusOf(movie.id);
+    const rating = library.ratingOf(movie.id);
+    statusButtons.forEach((b, i) => b.setAttribute("aria-pressed", String(STATUSES[i].id === status)));
+    removeListed.hidden = !status;
+    starGroup.setValue(rating);
+    ratingLabel.textContent = rating ? `You rated it ${rating}/5` : "Seen it? Rate it to improve your picks.";
+    removeRated.hidden = !rating;
+  }
+  refresh();
+
+  box.append(
+    el("div", { class: "your-list-head" }, el("h2", { id: "your-list-title" }, "Your list"), removeListed),
+    el("div", { class: "segmented", role: "group", "aria-label": "List status" }, statusButtons),
+    el("h2", { class: "your-rating-title" }, "Your rating"),
+    el("div", { class: "your-rating-row" }, starGroup, ratingLabel, removeRated)
+  );
+  return box;
 }

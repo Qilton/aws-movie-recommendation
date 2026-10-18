@@ -1,4 +1,4 @@
-// Hash routes: #/, #/welcome, #/movie/12, #/search?q=alien, #/ratings
+// Hash routes: #/, #/welcome, #/movie/12, #/search?q=alien, #/list?status=watching, #/signin, #/signup
 
 export function currentRoute() {
   const raw = location.hash.replace(/^#/, "") || "/";
@@ -6,7 +6,10 @@ export function currentRoute() {
   const params = new URLSearchParams(query);
   const movie = path.match(/^\/movie\/(\d+)$/);
   if (movie) return { name: "movie", id: Number(movie[1]), params };
-  const names = { "/": "home", "/welcome": "welcome", "/search": "search", "/ratings": "ratings" };
+  const names = {
+    "/": "home", "/welcome": "welcome", "/search": "search", "/list": "list", "/ratings": "ratings",
+    "/signin": "signin", "/signup": "signup",
+  };
   return { name: names[path] || "notfound", params };
 }
 

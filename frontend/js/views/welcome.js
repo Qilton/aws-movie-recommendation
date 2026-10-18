@@ -1,13 +1,13 @@
 import { api } from "../api.js";
 import { go } from "../router.js";
-import { user } from "../user.js";
+import { library } from "../library.js";
 import { el, errorBox, poster, skeletonGrid, toast } from "../ui.js";
 
 const NEEDED = 3;
 
 export async function renderWelcome(view) {
   document.body.classList.add("bare");
-  const picked = new Map(user.loved().map((m) => [m.id, m]));
+  const picked = new Map(library.loved().map((m) => [m.id, m]));
   const status = el("p", { class: "pick-count", "aria-live": "polite" });
   const next = el("button", { type: "button", class: "btn primary", onclick: finish }, "Show my picks");
   const gridHost = el("div", {}, skeletonGrid(18));
@@ -75,9 +75,9 @@ export async function renderWelcome(view) {
   async function finish() {
     next.disabled = true;
     next.textContent = "Saving…";
-    const toSave = [...picked.values()].filter((m) => user.ratingOf(m.id) < 4);
+    const toSave = [...picked.values()].filter((m) => library.ratingOf(m.id) < 4);
     try {
-      await Promise.all(toSave.map((m) => user.rate(m, 5)));
+      await Promise.all(toSave.map((m) => library.rate(m, 5)));
       go("#/");
     } catch (error) {
       toast(`Couldn't save your picks. ${error.message}`);
@@ -87,7 +87,7 @@ export async function renderWelcome(view) {
   }
 
   function skip() {
-    user.skipWelcome();
+    library.skipWelcome();
     go("#/");
   }
 

@@ -36,6 +36,12 @@ def test_rating_keeps_an_existing_status(store):
     assert entry(store, "alice", 1)["status"] == "watching"
 
 
+def test_rating_a_planned_movie_moves_it_to_watched(store):
+    store.set_status("alice", 1, "plan_to_watch")
+    store.set_rating("alice", 1, 4.0)
+    assert entry(store, "alice", 1)["status"] == "watched"
+
+
 def test_status_change_keeps_rating(store):
     store.set_rating("alice", 1, 5.0)
     store.set_status("alice", 1, "dropped")

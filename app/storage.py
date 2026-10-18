@@ -82,11 +82,16 @@ class LibraryStore:
             _unavailable(error)
 
     def set_rating(self, user_id, movie_id, rating):
-        """Rating a movie you haven't listed puts it on your list as watched."""
+        """Rating a movie you haven't listed, or only planned to watch, means
+        you've seen it: it goes on your list as watched."""
         self._update(
             user_id, movie_id,
             "SET rating = :r, updatedAt = :t, #s = if_not_exists(#s, :watched)",
             {":r": Decimal(str(rating)), ":t": _now(), ":watched": "watched"},
+        )
+        self._update(
+            user_id, movie_id, "SET #s = :watched", {":watched": "watched", ":plan": "plan_to_watch"},
+            condition="#s = :plan",
         )
 
     def clear_rating(self, user_id, movie_id):

@@ -46,11 +46,20 @@ export function poster(movie) {
   return frame;
 }
 
+// Optional label drawn on a card's poster (main.js shows the movie's list status).
+let badgeFor = () => "";
+export function setCardBadge(fn) {
+  badgeFor = fn;
+}
+
 export function card(movie, { caption } = {}) {
+  const frame = poster(movie);
+  const badge = badgeFor(movie);
+  if (badge) frame.append(el("span", { class: "card-badge" }, badge));
   return el(
     "a",
     { class: "card", href: `#/movie/${movie.id}` },
-    poster(movie),
+    frame,
     el("span", { class: "card-title" }, movie.title),
     el("span", { class: "card-meta" }, caption ?? movie.year ?? "")
   );
